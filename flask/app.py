@@ -30,22 +30,21 @@ content = {'by_bugs':
            }
 
 
-def get_search_regex(keywords, search_by_html):
+def get_search_regex(keywords, search_by):
     keywords_regex = {}
     kws = [ks for ks in keywords.strip().split(' ') if ks != '']
-    field_name = 'html' if search_by_html else 'title'
     if len(kws) > 0:
         reg_pattern = re.compile('|'.join(kws), re.IGNORECASE)
         # keywords_regex[field_name]={'$regex':'|'.join(kws)}
-        keywords_regex[field_name] = reg_pattern
+        keywords_regex[search_by] = reg_pattern
 
     return keywords_regex
 
 
-def search_mongodb(keywords, page, content_search_by, search_by_html):
+def search_mongodb(keywords, page, content_search_by, search_by):
     client = pymongo.MongoClient(connection_string)
     db = client[app.config['MONGODB_DB']]
-    keywords_regex = get_search_regex(keywords, search_by_html)
+    keywords_regex = get_search_regex(keywords, search_by)
     collection = db[content[content_search_by]['mongodb_collection']]
     # get the total count and page:
     total_rows = collection.find(keywords_regex).count()
@@ -148,19 +147,18 @@ def index():
 def search():
     keywords = request.args.get('keywords')
     page = int(request.args.get('page', 1))
-    search_by_html = True if 'true' == request.args.get(
-        'search_by_html', 'false').lower() else False
+    search_by = request.args.get('search_by')
     content_search_by = request.args.get('content_search_by', 'by_bugs')
     if page < 1:
         page = 1
     #if there is elasticsearch config ,then the fulltext search by es
     #else by mongodb search
-    if app.config['SEARCH_BY_ES'] is True and search_by_html is True:
-        page_info = search_mongodb_by_es(keywords, page, content_search_by, search_by_html)
+    if app.config['SEARCH_BY_ES'] is True and search_by == 'fulltext':
+        # elaseticsearch not fullfilled yet.
+        page_info = search_mongodb_by_es(keywords, page, content_search_by)
     else:
-        page_info = search_mongodb(keywords, page, content_search_by, search_by_html)
-    #
-    return render_template(content[content_search_by]['template_html'], keywords=keywords, page_info=page_info, search_by_html=search_by_html, title=u'搜索结果-乌云公开漏洞、知识库搜索')
+        page_info = search_mongodb(keywords, page, content_search_by, search_by)
+    return render_template(content[content_search_by]['template_html'], keywords=keywords, page_info=page_info, search_by=search_by, title=u'搜索结果-乌云公开漏洞、知识库搜索')
 
 
 def main():
